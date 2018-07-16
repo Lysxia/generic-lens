@@ -29,8 +29,10 @@ module Data.Generics.Sum.Constructors
   ( -- *Prisms
 
     -- $setup
-    AsConstructor (..)
-  , AsConstructor' (..)
+    AsConstructor' (..)
+  , AsConstructor (..)
+  , AsConstructor_ (..)
+  , AsConstructor0 (..)
   ) where
 
 import Data.Generics.Internal.Families
@@ -77,6 +79,12 @@ import Data.Generics.Internal.Profunctor.Prism (prismPRavel)
 -- duck = Duck 2
 -- :}
 
+class AsConstructor0 (ctor :: Symbol) s t a b | ctor s -> a, ctor t -> b where
+  _Ctor0 :: Prism s t a b
+
+class AsConstructor_ (ctor :: Symbol) s t a b | ctor s -> a, ctor t -> b where
+  _Ctor_ :: Prism s t a b
+
 -- |Sums that have a constructor with a given name.
 class AsConstructor (ctor :: Symbol) s t a b | ctor s -> a, ctor t -> b where
   -- |A prism that projects a named constructor from a sum. Compatible with the
@@ -105,6 +113,30 @@ class AsConstructor (ctor :: Symbol) s t a b | ctor s -> a, ctor t -> b where
 
 class AsConstructor' (ctor :: Symbol) s a | ctor s -> a where
   _Ctor' :: Prism s s a a
+
+instance
+  ( Generic s
+  , ErrorUnless ctor s (HasCtorP ctor (Rep s))
+  , Generic t
+  , GAsConstructor' ctor (Rep s) a
+  , GAsConstructor ctor (Rep s) (Rep t) a b
+  ) => AsConstructor0 ctor s t a b where
+
+  _Ctor0 eta = prismRavel (prismPRavel (repIso . _GCtor @ctor)) eta
+  {-# INLINE[2] _Ctor0 #-}
+
+instance
+  ( Generic s
+  , ErrorUnless ctor s (HasCtorP ctor (Rep s))
+  , Generic t
+  , GAsConstructor' ctor (Rep s) a
+  , GAsConstructor ctor (Rep s) (Rep t) a b
+  , UnifyTyCon s t
+  , UnifyTyCon t s
+  ) => AsConstructor_ ctor s t a b where
+
+  _Ctor_ eta = prismRavel (prismPRavel (repIso . _GCtor @ctor)) eta
+  {-# INLINE[2] _Ctor_ #-}
 
 instance
   ( Generic s
