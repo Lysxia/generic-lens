@@ -30,8 +30,10 @@ module Data.Generics.Product.Fields
   ( -- *Lenses
 
     -- $setup
-    HasField (..)
-  , HasField' (..)
+    HasField' (..)
+  , HasField (..)
+  , HasField_ (..)
+  , HasField0 (..)
 
   , getField
   , setField
@@ -75,6 +77,12 @@ import Data.Generics.Internal.Profunctor.Lens as P
 -- human :: Human Bool
 -- human = Human { name = "Tunyasz", age = 50, address = "London", other = False }
 -- :}
+
+class HasField0 (field :: Symbol) s t a b | s field -> a, t field -> b where
+  field0 :: VL.Lens s t a b
+
+class HasField_ (field :: Symbol) s t a b | s field -> a, t field -> b where
+  field_ :: VL.Lens s t a b
 
 -- |Records that have a field with a given name.
 class HasField (field :: Symbol) s t a b | s field -> a, t field -> b, s field b -> t, t field a -> s where
@@ -129,6 +137,26 @@ setField = VL.set (field' @f)
 instance
   ( Generic s
   , ErrorUnless field s (CollectField field (Rep s))
+  , Generic t
+  , GHasKey' field (Rep s) a
+  , GHasKey  field (Rep s) (Rep t) a b
+  ) => HasField0 field s t a b where
+  field0 f s = VL.ravel (repLens . gkey @field) f s
+
+instance
+  ( Generic s
+  , ErrorUnless field s (CollectField field (Rep s))
+  , Generic t
+  , GHasKey' field (Rep s) a
+  , GHasKey  field (Rep s) (Rep t) a b
+  , UnifyTyCon s t
+  , UnifyTyCon t s
+  ) => HasField_ field s t a b where
+  field_ f s = VL.ravel (repLens . gkey @field) f s
+
+instance
+  ( Generic s
+  , ErrorUnless field s (CollectField field (Rep s))
   , GHasKey' field (Rep s) a
   ) => HasField' field s a where
   field' f s = VL.ravel (repLens . gkey @field) f s
@@ -156,8 +184,17 @@ instance  -- see Note [Changing type parameters]
   field f s = VL.ravel (repLens . gkey @field) f s
 
 -- -- See Note [Uncluttering type signatures]
+instance {-# OVERLAPPING #-} HasField0 f (Void1 a) (Void1 b) a b where
+  field0 = undefined
+
+instance {-# OVERLAPPING #-} HasField_ f (Void1 a) (Void1 b) a b where
+  field_ = undefined
+
 instance {-# OVERLAPPING #-} HasField f (Void1 a) (Void1 b) a b where
   field = undefined
+
+instance {-# OVERLAPPING #-} HasField' f (Void1 a) a where
+  field' = undefined
 
 type family ErrorUnless (field :: Symbol) (s :: Type) (stat :: TypeStat) :: Constraint where
   ErrorUnless field s ('TypeStat _ _ '[])

@@ -16,6 +16,7 @@ module Data.Generics.Internal.Families.Changing
   , LookupParam
   , ArgAt
   , ArgCount
+  , UnifyTyCon
   ) where
 
 import GHC.TypeLits (Nat, type (-), type (+), TypeError, ErrorMessage (..))
@@ -152,3 +153,12 @@ type family ArgAt (t :: k) (n :: Nat) :: j where
 -- However, for some reason, this violates the functional dependencies on 8.2.2.
 -- Therefore, when using a newer version of the compiler, the original constraints
 -- are used, as the expression size is smaller under 8.2.2.
+
+-- Unify only the type constructor.
+--
+-- This is an alternative way of using constraints for type inference than the
+-- tagging above. This is weaker but works with more types (in particular, data
+-- families and other types with nominal roles).
+class UnifyTyCon (a :: k) (b :: k)
+instance {-# OVERLAPPING #-} (gb ~ g b, UnifyTyCon f g) => UnifyTyCon (f a) gb
+instance f ~ g => UnifyTyCon f g
